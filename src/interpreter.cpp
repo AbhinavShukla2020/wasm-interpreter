@@ -1,7 +1,6 @@
 #include "miniwm/interpreter.hpp"
 
 #include <algorithm>
-#include <cstring>
 #include <limits>
 
 #include "miniwm/error.hpp"
@@ -239,7 +238,13 @@ std::optional<Value> Interpreter::execute(std::uint32_t function_index,
           case Op::I32Or: result = left | right; break;
           case Op::I32Xor: result = left ^ right; break;
           case Op::I32Shl: result = static_cast<std::uint32_t>(left) << (right & 31); break;
-          case Op::I32ShrS: result = left >> (right & 31); break;
+          case Op::I32ShrS: {
+            const auto shift = static_cast<unsigned>(right) & 31u;
+            auto shifted = static_cast<std::uint32_t>(left) >> shift;
+            if (left < 0 && shift != 0) shifted |= (~std::uint32_t{0}) << (32u - shift);
+            result = static_cast<std::int32_t>(shifted);
+            break;
+          }
           default: break;
         }
         stack.push_back(Value::i32(result));
@@ -287,14 +292,18 @@ std::optional<Value> Interpreter::execute(std::uint32_t function_index,
 
 std::uint32_t Interpreter::load_u32(std::uint32_t address) const {
   if (static_cast<std::uint64_t>(address) + 4 > memory_.size()) throw Trap("out-of-bounds memory load");
-  std::uint32_t value;
-  std::memcpy(&value, memory_.data() + address, sizeof(value));
-  return value;
+  return static_cast<std::uint32_t>(memory_[address]) |
+         (static_cast<std::uint32_t>(memory_[address + 1]) << 8u) |
+         (static_cast<std::uint32_t>(memory_[address + 2]) << 16u) |
+         (static_cast<std::uint32_t>(memory_[address + 3]) << 24u);
 }
 
 void Interpreter::store_u32(std::uint32_t address, std::uint32_t value) {
   if (static_cast<std::uint64_t>(address) + 4 > memory_.size()) throw Trap("out-of-bounds memory store");
-  std::memcpy(memory_.data() + address, &value, sizeof(value));
+  memory_[address] = static_cast<std::uint8_t>(value);
+  memory_[address + 1] = static_cast<std::uint8_t>(value >> 8u);
+  memory_[address + 2] = static_cast<std::uint8_t>(value >> 16u);
+  memory_[address + 3] = static_cast<std::uint8_t>(value >> 24u);
 }
 
 }  // namespace miniwm
