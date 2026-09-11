@@ -1,0 +1,24 @@
+#include <cstdint>
+#include <iostream>
+#include <vector>
+
+#include "miniwm/interpreter.hpp"
+#include "miniwm/module.hpp"
+
+int main() {
+  const std::vector<std::uint8_t> bytes{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      0x01, 0x07, 0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f,
+      0x03, 0x02, 0x01, 0x00,
+      0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00,
+      0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b,
+  };
+  miniwm::Interpreter interpreter(miniwm::Module::parse(bytes));
+  const auto result = interpreter.invoke("add", {miniwm::Value::i32(19), miniwm::Value::i32(23)});
+  if (!result || result->as_i32() != 42) {
+    std::cerr << "expected add(19, 23) to return 42\n";
+    return 1;
+  }
+  std::cout << "smoke test passed\n";
+}
+
